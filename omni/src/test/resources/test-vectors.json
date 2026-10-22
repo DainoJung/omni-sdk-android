@@ -1,0 +1,74 @@
+{
+  "fnv1a32": [
+    {
+      "input": "paywall_headline:00000000-0000-0000-0000-000000000000",
+      "fnv1a32": 4186208400,
+      "bucket": 8400,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "onboarding_v2:6f1c2d3e-4b5a-4c6d-8e7f-0123456789ab",
+      "fnv1a32": 3481007406,
+      "bucket": 7406,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "x:a",
+      "fnv1a32": 3070346514,
+      "bucket": 6514,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "exp_6:a6a3a450-6513-270e-269e-0d37f2a74de4",
+      "fnv1a32": 2605997556,
+      "bucket": 7556,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "exp_1:1818e811-892f-902b-d23f-0824128b2f33",
+      "fnv1a32": 3607646409,
+      "bucket": 6409,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "exp_6:81e74ef5-e8e2-5d94-0ed9-04759531985d",
+      "fnv1a32": 3554096528,
+      "bucket": 6528,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "exp_4:6b0d549b-6f03-675a-1600-a35a099950d8",
+      "fnv1a32": 658485148,
+      "bucket": 5148,
+      "variant_index_50_50": 1,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "exp_2:6cad4a26-8d11-6ece-1738-f7d93d9c1724",
+      "fnv1a32": 3464504351,
+      "bucket": 4351,
+      "variant_index_50_50": 0,
+      "variant_index_10_30_60": 2
+    },
+    {
+      "input": "exp_4:f29d0da9-953f-48f1-a09f-76b5a170b338",
+      "fnv1a32": 1052393823,
+      "bucket": 3823,
+      "variant_index_50_50": 0,
+      "variant_index_10_30_60": 1
+    },
+    {
+      "input": "exp_9:7731af10-506b-f2ef-c6f8-77186d76b07e",
+      "fnv1a32": 2042750113,
+      "bucket": 113,
+      "variant_index_50_50": 0,
+      "variant_index_10_30_60": 0
+    }
+  ]
+}
