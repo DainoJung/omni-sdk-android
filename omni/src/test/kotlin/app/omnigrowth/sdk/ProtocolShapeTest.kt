@@ -9,15 +9,16 @@ import org.junit.Test
 /** The wire format, field by field, against PROTOCOL.md's `POST /v1/batch`. */
 class ProtocolShapeTest {
     private val contextKeys = listOf(
-        "app_version", "build", "platform", "device_type", "locale", "os_version", "device_model", "session_id", "sdk",
+        "app_version", "build", "platform", "device_type", "locale", "timezone", "os_version", "device_model",
+        "session_id", "sdk",
     )
 
     @Test
     fun batchOfTwoEventsMatchesTheProtocolExactly() {
         val context = EventContext(
             appVersion = "1.4.0", build = "52", platform = "android", deviceType = "phone", locale = "ko-KR",
-            osVersion = "16", deviceModel = "Pixel 9", sessionId = "0192f6c3-0000-4000-8000-000000000000",
-            sdk = "omni-android/0.1.0",
+            timezone = "Asia/Seoul", osVersion = "16", deviceModel = "Pixel 9",
+            sessionId = "0192f6c3-0000-4000-8000-000000000000", sdk = "omni-android/0.2.0",
         )
         val events = listOf(
             Event("0192f6c4-0000-4000-8000-000000000001", "lesson_completed", "2026-10-21T08:59:58.120Z", "a1b2", null,
@@ -52,7 +53,8 @@ class ProtocolShapeTest {
         // Literally, so a renamed field can't hide behind the parser.
         assertTrue(body.contains("\"sent_at\":\"2026-10-21T09:00:00.000Z\""))
         assertTrue(body.contains("\"user_id\":null"))
-        assertTrue(body.contains("\"sdk\":\"omni-android/0.1.0\""))
+        assertTrue(body.contains("\"sdk\":\"omni-android/0.2.0\""))
+        assertTrue(body.contains("\"timezone\":\"Asia/Seoul\""))
     }
 
     @Test
@@ -74,11 +76,28 @@ class ProtocolShapeTest {
             val ctx = e["context"] as Map<*, *>
             assertEquals(contextKeys, ctx.keys.toList())
             assertEquals("android", ctx["platform"])
+            assertEquals("Asia/Seoul", ctx["timezone"])
             assertEquals("omni-android/${Omni.sdkVersion}", ctx["sdk"])
             assertTrue((e["ts"] as String).matches(Regex("""\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z""")))
         }
         assertEquals(events[0]["context"].let { (it as Map<*, *>)["session_id"] }, (events[1]["context"] as Map<*, *>)["session_id"])
         assertFalse(events[0]["uuid"] == events[1]["uuid"])
+    }
+
+    @Test
+    fun timezoneIsReadWhenEachEventIsMade() {
+        val h = Harness(options = Omni.Options(captureLifecycle = false), permission = null)
+        h.client.start(appInForeground = true)
+        h.client.track("a", null)
+        h.worker.drain()
+        h.timeZone = "America/Los_Angeles" // landed in another country
+        h.client.track("b", null)
+        h.worker.drain()
+        h.timeZone = null
+        h.client.track("c", null)
+        val zones = h.events().map { (it["context"] as Map<*, *>)["timezone"] }
+        assertEquals(listOf("Asia/Seoul", "America/Los_Angeles", null), zones)
+        assertFalse((h.transport.sentEvents[2]["context"] as Map<*, *>).containsKey("timezone"))
     }
 
     @Test
@@ -91,7 +110,7 @@ class ProtocolShapeTest {
     @Test
     fun queuedEventsRoundTripThroughTheFile() {
         val e = Event("u", "x", "2026-10-21T08:59:58.120Z", "a", "user", mapOf("n" to 1.5, "list" to listOf(1L, "b")),
-            EventContext(platform = "android", sessionId = "s"), Identity(billingId = "cus_1"))
+            EventContext(platform = "android", timezone = "Europe/Berlin", sessionId = "s"), Identity(billingId = "cus_1"))
         assertEquals(e, Event.fromJson(Json.parseObject(Json.encode(e.toJson()))!!))
     }
 }

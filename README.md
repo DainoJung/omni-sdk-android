@@ -22,7 +22,7 @@ Then add the dependency to your app module (use the latest tag):
 
 ```kotlin
 dependencies {
-    implementation("com.github.DainoJung:omni-sdk-android:0.1.0")
+    implementation("com.github.DainoJung:omni-sdk-android:0.2.0")
 }
 ```
 
@@ -83,6 +83,7 @@ Omni.configure(this, "opk_…", Omni.Options(
     captureScreens = true,     // $screen each time an activity resumes
     debug = false,             // log to Logcat (tag "Omni")
     captureLifecycle = true,   // $app_installed, $app_updated, $app_opened
+    showsPushes = false,       // true once you call Omni.showPush (see Push buttons)
 ))
 ```
 
@@ -171,6 +172,42 @@ override fun onNewIntent(intent: Intent) {
 
 It returns the push's deep link, or null. An open is counted once per message.
 
+## Push buttons
+
+Omni can add up to 3 buttons to a push ("Review now", "Later"), an image, and a deep link per button. For that your
+app shows Omni's pushes itself: Omni then sends them as data-only messages, which Android hands to your
+`FirebaseMessagingService` instead of showing them. Pass the data to `Omni.showPush` first thing:
+
+```kotlin
+class MyMessagingService : FirebaseMessagingService() {
+    override fun onNewToken(token: String) = Omni.setPushToken(token)
+
+    override fun onMessageReceived(message: RemoteMessage) {
+        if (Omni.showPush(this, message.data)) return // Omni's push: shown
+        // …your own pushes, as before
+    }
+}
+```
+
+and tell Omni you do, so it starts sending you pushes with buttons:
+
+```kotlin
+Omni.configure(this, "opk_…", Omni.Options(showsPushes = true))
+```
+
+`showPush` returns false for messages that aren't Omni's. For Omni's it builds the notification: its title and text,
+the image when there is one (downloaded with a short timeout; text when it doesn't arrive), the channel the push names
+if your app has it (else your FCM default channel, else a "Notifications" channel the SDK creates), your FCM
+notification icon (`com.google.firebase.messaging.default_notification_icon` in the manifest, else the app icon), and
+the buttons. On Android 13+ it posts only when the person has allowed notifications (`POST_NOTIFICATIONS`): ask for
+it as you do today.
+
+The notification and each button open your launch activity. Omni records which one was tapped (`$push_opened` with
+`action`: `open` or the button's id) by itself; when your activity is already open, `Omni.trackPushOpened(intent.extras)`
+in `onNewIntent` (above) records it and returns the button's link (else the push's).
+
+Without `showsPushes`, Omni's pushes come as regular notifications, without buttons.
+
 ## Where people came from
 
 On first launch, Omni reads the Google Play Install Referrer once and sends `$attribution` with the campaign
@@ -182,10 +219,11 @@ join the post they came from. Without the Play Store (sideloaded, other stores) 
 - The events you send, and their properties.
 - With `captureLifecycle` on: app installed, app updated and app opened.
 - With `captureScreens` on: the name of each activity as it resumes (from its class name, see Screens).
-- Push: the FCM token, whether notifications are allowed, and which Omni pushes were opened.
+- Push: the FCM token, whether notifications are allowed, and which Omni pushes were opened (and which button).
 - Once per install: the Play Install Referrer (the campaign of the link that led to the install).
 - With every event: app version and build, platform (`android`), device type (phone or tablet), device model (e.g.
-  `Pixel 9`), Android version, locale, a session id, a random anonymous id made on first launch, and your user id
+  `Pixel 9`), Android version, locale, time zone (e.g. `Asia/Seoul`, so pushes arrive at a good local time), a session
+  id, a random anonymous id made on first launch, and your user id
   after `identify`.
 
 What isn't collected: no advertising id (AAID/GAID) or Android id, no autocapture of taps, no screen contents,

@@ -52,8 +52,12 @@ internal class Experiment(
 /** The answer for one experiment on this device. [decided]: the experiment has a winner, so no exposure is sent. */
 internal class Choice(val variant: String, val payload: Map<String, Any?>, val decided: Boolean)
 
-/** `GET /v1/config`. */
-internal class ExperimentConfig(val experiments: List<Experiment>, val ttlSeconds: Long) {
+/** `GET /v1/config`: the experiments, and the push buttons Omni may use. */
+internal class ExperimentConfig(
+    val experiments: List<Experiment>,
+    val ttlSeconds: Long,
+    val pushCategories: List<PushCategory> = emptyList(),
+) {
     fun find(key: String): Experiment? = experiments.firstOrNull { it.key == key }
 
     companion object {
@@ -64,7 +68,11 @@ internal class ExperimentConfig(val experiments: List<Experiment>, val ttlSecond
             val root = Json.parseObject(text) ?: return null
             val list = root["experiments"] as? List<*> ?: return null
             val ttl = (root["ttl"] as? Number)?.toLong()?.takeIf { it > 0 } ?: DEFAULT_TTL_SECONDS
-            return ExperimentConfig(list.mapNotNull { (it as? Map<*, *>)?.let(::experiment) }, ttl)
+            return ExperimentConfig(
+                list.mapNotNull { (it as? Map<*, *>)?.let(::experiment) },
+                ttl,
+                PushCategory.list(root["push_categories"]),
+            )
         }
 
         @Suppress("UNCHECKED_CAST")

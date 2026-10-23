@@ -5,7 +5,7 @@ plugins {
 
 // JitPack passes the tag being built as VERSION.
 group = "com.github.DainoJung"
-version = System.getenv("VERSION") ?: "0.1.0"
+version = System.getenv("VERSION") ?: "0.2.0"
 
 android {
     namespace = "app.omnigrowth.sdk"

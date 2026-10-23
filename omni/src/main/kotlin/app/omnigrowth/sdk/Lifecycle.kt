@@ -49,12 +49,12 @@ internal class AndroidHooks(
     }
 
     override fun onActivityResumed(activity: Activity) {
-        handleLaunchIntent(activity.intent)
+        handleLaunchIntent(activity, activity.intent)
         ScreenName.from(activity.javaClass.name)?.let { client.observedScreen(it, auto = true) }
     }
 
     /** `$push_opened` for an activity opened from an Omni push, once per intent. */
-    private fun handleLaunchIntent(intent: Intent?) {
+    private fun handleLaunchIntent(activity: Activity, intent: Intent?) {
         intent ?: return
         try {
             if (intent.getBooleanExtra(HANDLED_EXTRA, false)) return
@@ -62,7 +62,8 @@ internal class AndroidHooks(
             if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
             val opened = Push.opened { intent.getStringExtra(it) } ?: return
             intent.putExtra(HANDLED_EXTRA, true)
-            client.pushOpened(opened.messageId)
+            client.pushOpened(opened.messageId, opened.action)
+            PushNotifier.dismissAfterButton(activity, opened)
         } catch (_: RuntimeException) {
             // Extras the app's classloader can't unparcel (BadParcelableException): not ours to read.
         }

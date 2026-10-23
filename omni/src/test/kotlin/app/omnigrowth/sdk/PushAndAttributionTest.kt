@@ -74,7 +74,15 @@ class PushAndAttributionTest {
         h.client.pushOpened("m_1")
         h.client.pushOpened("m_1") // the automatic intent check and the app's own call for the same push
         h.client.pushOpened("m_2")
-        assertEquals(listOf(mapOf("message_id" to "m_1"), mapOf("message_id" to "m_2")), props(h, "\$push_opened"))
+        h.client.pushOpened("m_3", "b1")
+        assertEquals(
+            listOf(
+                mapOf("message_id" to "m_1", "action" to "open"),
+                mapOf("message_id" to "m_2", "action" to "open"),
+                mapOf("message_id" to "m_3", "action" to "b1"),
+            ),
+            props(h, "\$push_opened"),
+        )
     }
 
     @Test
@@ -83,6 +91,7 @@ class PushAndAttributionTest {
         val opened = Push.opened { data[it] }!!
         assertEquals("m_1", opened.messageId)
         assertEquals("scribo://paywall", opened.url)
+        assertEquals("open", opened.action)
         assertNull(Push.opened { mapOf("google.message_id" to "x")[it] })
         assertNull(Push.opened { mapOf("omni_message_id" to "m", "omni_url" to "")[it] }!!.url)
     }

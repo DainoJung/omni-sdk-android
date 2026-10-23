@@ -115,6 +115,7 @@ internal class Harness(
     val configStore: MemoryText = MemoryText(),
     val clock: FakeClock = FakeClock(),
     var permission: String? = "authorized",
+    var timeZone: String? = "Asia/Seoul",
 ) {
     val worker = FakeWorker(clock)
     val transport = FakeTransport()
@@ -131,6 +132,7 @@ internal class Harness(
         worker = worker,
         log = Log.off,
         pushPermission = { permission },
+        timeZone = { timeZone },
         now = { clock.now },
     )
 

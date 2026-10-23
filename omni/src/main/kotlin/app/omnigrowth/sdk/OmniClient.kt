@@ -1,5 +1,6 @@
 package app.omnigrowth.sdk
 
+import java.util.TimeZone
 import java.util.UUID
 
 /**
@@ -21,6 +22,8 @@ internal class OmniClient(
     val log: Log,
     /** `authorized` / `denied`, or null when it can't be read. Called on the worker. */
     private val pushPermission: () -> String? = { null },
+    /** The device's time zone right now (it changes when people travel). */
+    private val timeZone: () -> String? = { TimeZone.getDefault().id },
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     companion object {
@@ -309,6 +312,12 @@ internal class OmniClient(
         waiters.forEach { it(parsed != null) }
     }
 
+    /** The push buttons listed in the config (the device's copy until a fetch lands). */
+    fun pushCategories(): List<PushCategory> = synchronized(lock) {
+        loadConfigCopy()
+        config?.pushCategories.orEmpty()
+    }
+
     private fun refreshConfigIfStale() {
         val (fetchedAt, ttl) = synchronized(lock) {
             loadConfigCopy()
@@ -332,12 +341,18 @@ internal class OmniClient(
     private fun sendPushToken(token: String, force: Boolean) {
         if (isOptedOut) return
         val t = now()
-        if (!force && !Push.shouldSendToken(token, storage.string(StoreKey.PUSH_TOKEN), storage.long(StoreKey.PUSH_TOKEN_SENT_AT), t)) {
+        // Turning `showsPushes` on (or off) tells Omni at once, not a week later.
+        val buttons = options.showsPushes
+        val buttonsChanged = storage.bool(StoreKey.PUSH_TOKEN_BUTTONS) != buttons
+        if (!force && !buttonsChanged &&
+            !Push.shouldSendToken(token, storage.string(StoreKey.PUSH_TOKEN), storage.long(StoreKey.PUSH_TOKEN_SENT_AT), t)
+        ) {
             return
         }
-        captureOnWorker("\$push_token", Push.tokenProperties(token))
+        captureOnWorker("\$push_token", Push.tokenProperties(token, buttons))
         storage.set(StoreKey.PUSH_TOKEN, token)
         storage.set(StoreKey.PUSH_TOKEN_SENT_AT, t)
+        storage.set(StoreKey.PUSH_TOKEN_BUTTONS, buttons)
     }
 
     private fun checkPushPermission() {
@@ -352,8 +367,11 @@ internal class OmniClient(
         storage.set(StoreKey.PUSH_PERMISSION, status)
     }
 
-    /** `$push_opened` once per message (an app that also calls `trackPushOpened` for the same intent isn't counted twice). */
-    fun pushOpened(messageId: String) {
+    /**
+     * `$push_opened` once per message (an app that also calls `trackPushOpened` for the same intent isn't counted twice).
+     * [action]: `open` for the notification itself, else the button's id.
+     */
+    fun pushOpened(messageId: String, action: String = Push.OPEN_ACTION) {
         val first = synchronized(lock) {
             if (messageId in recentPushOpens) {
                 false
@@ -363,7 +381,7 @@ internal class OmniClient(
                 true
             }
         }
-        if (first) capture("\$push_opened", linkedMapOf("message_id" to messageId))
+        if (first) capture("\$push_opened", linkedMapOf("message_id" to messageId, "action" to action))
     }
 
     // Attribution
@@ -554,6 +572,11 @@ internal class OmniClient(
             platform = device.platform,
             deviceType = device.deviceType,
             locale = device.locale,
+            timezone = try {
+                timeZone()?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) {
+                null
+            },
             osVersion = device.osVersion,
             deviceModel = device.deviceModel,
             sessionId = sessionId,

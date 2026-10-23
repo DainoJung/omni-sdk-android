@@ -23,7 +23,7 @@ import kotlin.coroutines.suspendCoroutine
  * Every call is thread-safe, returns immediately and never throws. Work happens on a background thread.
  */
 public object Omni {
-    public const val sdkVersion: String = "0.1.0"
+    public const val sdkVersion: String = "0.2.0"
 
     /** Called when [loadExperiments] is done: [fetched] is true when a fresh config arrived before the timeout. */
     public fun interface ExperimentsCallback {
@@ -48,6 +48,11 @@ public object Omni {
          * (Flushing when the app goes to the background happens either way.)
          */
         public val captureLifecycle: Boolean = true,
+        /**
+         * The app shows Omni's pushes itself by calling [showPush] from its `FirebaseMessagingService`, so Omni may
+         * send them with buttons (they then come as data-only messages). Without it, pushes come without buttons.
+         */
+        public val showsPushes: Boolean = false,
     ) {
         /** The same options with out-of-range values pulled into range. */
         internal fun normalized(): Options {
@@ -60,6 +65,7 @@ public object Omni {
                 captureScreens = captureScreens,
                 debug = debug,
                 captureLifecycle = captureLifecycle,
+                showsPushes = showsPushes,
             )
         }
 
@@ -105,6 +111,7 @@ public object Omni {
                 return
             }
             val app = context.applicationContext ?: context
+            appContext = app
             val log = Log(opts.debug)
             val worker = ExecutorWorker("omni")
             val dir = File(app.noBackupFilesDir, "omni")
@@ -257,9 +264,29 @@ public object Omni {
     }
 
     /**
-     * Records that an Omni push was opened (`$push_opened`) and returns its deep link (`omni_url`), or null when the
-     * push isn't Omni's or has no link. Activities launched from a notification are handled automatically; call this
-     * from `onNewIntent` (with `intent.extras`) or for notifications you build yourself.
+     * Shows an Omni push yourself, with its buttons, image and deep link. Call it first thing in your
+     * `FirebaseMessagingService.onMessageReceived` with `message.data`, and turn on [Options.showsPushes] so Omni
+     * sends you pushes with buttons.
+     *
+     * Returns false when the message isn't Omni's (handle it as before), true when it is (shown, or not when the
+     * person hasn't allowed notifications).
+     */
+    @JvmStatic
+    public fun showPush(context: Context, data: Map<String, String>): Boolean {
+        val content = PushContent.from(data) ?: return false
+        try {
+            PushNotifier.show(context, content, currentClient()?.log ?: Log.off)
+        } catch (e: Exception) {
+            Log.warn("showPush: couldn't show push ${content.messageId}: $e")
+        }
+        return true
+    }
+
+    /**
+     * Records that an Omni push was opened (`$push_opened`, with the button tapped, if any) and returns its deep link
+     * (`omni_url`: the button's link, else the push's), or null when the push isn't Omni's or has no link. Activities
+     * launched from a notification are handled automatically; call this from `onNewIntent` (with `intent.extras`) or
+     * for notifications you build yourself.
      */
     @JvmStatic
     public fun trackPushOpened(extras: Bundle?): String? {
@@ -269,7 +296,8 @@ public object Omni {
         } catch (_: RuntimeException) {
             null
         } ?: return null
-        client("trackPushOpened")?.pushOpened(opened.messageId)
+        client("trackPushOpened")?.pushOpened(opened.messageId, opened.action)
+        synchronized(this) { appContext }?.let { PushNotifier.dismissAfterButton(it, opened) }
         return opened.url
     }
 
@@ -309,6 +337,7 @@ public object Omni {
     // Internals
 
     private var sharedClient: OmniClient? = null
+    private var appContext: Context? = null
     private var pendingOptOut: Boolean? = null
     private var warnedUnconfigured = false
 

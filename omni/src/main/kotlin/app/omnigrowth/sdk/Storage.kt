@@ -25,6 +25,7 @@ internal object StoreKey {
     const val FIRST_LAUNCH_AT = "first_launch_at"
     const val PUSH_TOKEN = "push_token"
     const val PUSH_TOKEN_SENT_AT = "push_token_sent_at"
+    const val PUSH_TOKEN_BUTTONS = "push_token_buttons"
     const val PUSH_PERMISSION = "push_permission"
     const val ATTRIBUTION_DONE = "attribution_done"
     const val ATTRIBUTION_ATTEMPTS = "attribution_attempts"

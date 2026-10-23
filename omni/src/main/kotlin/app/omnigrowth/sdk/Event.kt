@@ -7,6 +7,8 @@ internal data class EventContext(
     val platform: String? = null,
     val deviceType: String? = null,
     val locale: String? = null,
+    /** IANA zone (`Asia/Seoul`), read per event since people travel: Omni sends pushes at their local time. */
+    val timezone: String? = null,
     val osVersion: String? = null,
     val deviceModel: String? = null,
     val sessionId: String? = null,
@@ -18,6 +20,7 @@ internal data class EventContext(
         platform?.let { put("platform", it) }
         deviceType?.let { put("device_type", it) }
         locale?.let { put("locale", it) }
+        timezone?.let { put("timezone", it) }
         osVersion?.let { put("os_version", it) }
         deviceModel?.let { put("device_model", it) }
         sessionId?.let { put("session_id", it) }
@@ -31,6 +34,7 @@ internal data class EventContext(
             platform = m?.get("platform") as? String,
             deviceType = m?.get("device_type") as? String,
             locale = m?.get("locale") as? String,
+            timezone = m?.get("timezone") as? String,
             osVersion = m?.get("os_version") as? String,
             deviceModel = m?.get("device_model") as? String,
             sessionId = m?.get("session_id") as? String,
